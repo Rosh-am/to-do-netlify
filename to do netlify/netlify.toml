@@ -1,0 +1,11 @@
+[build]
+  functions = "netlify/functions"
+  publish   = "public"
+
+# Redirect /api/todos → /.netlify/functions/todos
+# This keeps the frontend URL clean and works for all HTTP methods
+[[redirects]]
+  from   = "/api/*"
+  to     = "/.netlify/functions/:splat"
+  status = 200
+  force  = true

@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>To‑Do</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0c0f;
+      --surface: #13141a;
+      --border: #22242e;
+      --accent: #7c6dfa;
+      --accent-glow: rgba(124,109,250,.25);
+      --green: #3ecf8e;
+      --red: #f06060;
+      --text: #e8e9f0;
+      --muted: #5a5d72;
+      --radius: 14px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 16px 80px;
+    }
+
+    /* ── noise grain overlay ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0;
+    }
+
+    .wrapper { position: relative; z-index: 1; width: 100%; max-width: 600px; }
+
+    /* ── header ── */
+    header { margin-bottom: 40px; }
+    header h1 {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: clamp(2rem, 6vw, 3.2rem);
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #fff 30%, var(--accent));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    header p { color: var(--muted); font-size: .9rem; margin-top: 6px; }
+
+    /* ── stats bar ── */
+    .stats {
+      display: flex; gap: 20px;
+      margin-bottom: 28px;
+      font-size: .8rem; color: var(--muted);
+      font-family: 'Syne', sans-serif;
+    }
+    .stats span b { color: var(--text); font-size: 1rem; }
+
+    /* ── input form ── */
+    .add-form {
+      display: flex; gap: 10px;
+      margin-bottom: 28px;
+    }
+    .add-form input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      padding: 14px 18px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .add-form input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .add-form input::placeholder { color: var(--muted); }
+    .add-form button {
+      background: var(--accent);
+      border: none; border-radius: var(--radius);
+      color: #fff;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700; font-size: .95rem;
+      padding: 14px 22px;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+      white-space: nowrap;
+    }
+    .add-form button:hover { opacity: .85; }
+    .add-form button:active { transform: scale(.97); }
+    .add-form button:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── filter tabs ── */
+    .filters {
+      display: flex; gap: 6px;
+      margin-bottom: 22px;
+    }
+    .filters button {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .82rem;
+      padding: 6px 16px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .filters button.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .filters button:not(.active):hover {
+      border-color: var(--accent); color: var(--text);
+    }
+
+    /* ── todo list ── */
+    #todo-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .todo-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px;
+      animation: slideIn .25s ease;
+      transition: border-color .2s, opacity .3s;
+    }
+    .todo-item:hover { border-color: #2e3045; }
+    .todo-item.done { opacity: .55; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* checkbox */
+    .check-btn {
+      width: 22px; height: 22px; flex-shrink: 0;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: transparent;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .2s;
+    }
+    .check-btn:hover { border-color: var(--green); }
+    .todo-item.done .check-btn {
+      background: var(--green); border-color: var(--green);
+    }
+    .check-btn svg { display: none; }
+    .todo-item.done .check-btn svg { display: block; }
+
+    /* text */
+    .todo-text {
+      flex: 1;
+      font-size: .97rem; line-height: 1.4;
+      word-break: break-word;
+    }
+    .todo-item.done .todo-text {
+      text-decoration: line-through; color: var(--muted);
+    }
+
+    /* edit input */
+    .edit-input {
+      flex: 1;
+      background: transparent;
+      border: none; border-bottom: 1px solid var(--accent);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .97rem;
+      outline: none; padding: 2px 0;
+    }
+
+    /* action buttons */
+    .actions { display: flex; gap: 6px; }
+    .icon-btn {
+      background: transparent; border: none;
+      border-radius: 8px;
+      color: var(--muted);
+      cursor: pointer; padding: 5px;
+      display: flex; align-items: center;
+      transition: color .2s, background .2s;
+    }
+    .icon-btn:hover { background: rgba(255,255,255,.06); }
+    .icon-btn.edit:hover { color: var(--accent); }
+    .icon-btn.save:hover { color: var(--green); }
+    .icon-btn.del:hover  { color: var(--red); }
+
+    /* ── empty state ── */
+    .empty {
+      text-align: center; padding: 60px 20px;
+      color: var(--muted);
+    }
+    .empty .icon { font-size: 3rem; margin-bottom: 12px; }
+    .empty p { font-size: .95rem; }
+
+    /* ── global loader / toast ── */
+    #toast {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      color: var(--text);
+      font-size: .85rem;
+      padding: 10px 22px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .3s;
+      z-index: 100;
+    }
+    #toast.show { opacity: 1; }
+    #toast.error { border-color: var(--red); color: var(--red); }
+
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <header>
+      <h1>My To‑Do</h1>
+      <p>Stay focused. Get things done.</p>
+    </header>
+
+    <div class="stats">
+      <span><b id="stat-total">0</b> total</span>
+      <span><b id="stat-done">0</b> done</span>
+      <span><b id="stat-left">0</b> left</span>
+    </div>
+
+    <form class="add-form" id="add-form">
+      <input type="text" id="new-todo" placeholder="What needs to be done?" autocomplete="off" />
+      <button type="submit" id="add-btn">+ Add</button>
+    </form>
+
+    <div class="filters">
+      <button class="active" data-filter="all">All</button>
+      <button data-filter="active">Active</button>
+      <button data-filter="done">Done</button>
+    </div>
+
+    <div id="todo-list"></div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    const API = '/api/todos';
+    let todos = [];
+    let filter = 'all';
+
+    // ── Helpers ──────────────────────────────────────────────────
+    function showToast(msg, isError = false) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'show' + (isError ? ' error' : '');
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => { t.className = ''; }, 2500);
+    }
+
+    function updateStats() {
+      const done = todos.filter(t => t.completed).length;
+      document.getElementById('stat-total').textContent = todos.length;
+      document.getElementById('stat-done').textContent = done;
+      document.getElementById('stat-left').textContent = todos.length - done;
+    }
+
+    // ── Render ───────────────────────────────────────────────────
+    function render() {
+      updateStats();
+      const list = document.getElementById('todo-list');
+      const visible = todos.filter(t => {
+        if (filter === 'active') return !t.completed;
+        if (filter === 'done') return t.completed;
+        return true;
+      });
+
+      if (!visible.length) {
+        list.innerHTML = `<div class="empty"><div class="icon">✓</div><p>${
+          filter === 'done' ? 'No completed tasks yet.' :
+          filter === 'active' ? 'Nothing active — great job!' :
+          'No tasks yet. Add one above!'
+        }</p></div>`;
+        return;
+      }
+
+      list.innerHTML = '';
+      visible.forEach(todo => {
+        const item = document.createElement('div');
+        item.className = 'todo-item' + (todo.completed ? ' done' : '');
+        item.dataset.id = todo._id;
+
+        item.innerHTML = `
+          <button class="check-btn" title="Toggle done">
+            <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+              <path d="M1 4.5L4 7.5L10 1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <span class="todo-text">${escapeHtml(todo.text)}</span>
+          <div class="actions">
+            <button class="icon-btn edit" title="Edit">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button class="icon-btn del" title="Delete">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+                <path d="M9 6V4h6v2"/>
+              </svg>
+            </button>
+          </div>`;
+
+        item.querySelector('.check-btn').addEventListener('click', () => toggleTodo(todo._id, !todo.completed));
+        item.querySelector('.icon-btn.edit').addEventListener('click', () => startEdit(item, todo));
+        item.querySelector('.icon-btn.del').addEventListener('click', () => deleteTodo(todo._id));
+
+        list.appendChild(item);
+      });
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function startEdit(item, todo) {
+      const span = item.querySelector('.todo-text');
+      const actions = item.querySelector('.actions');
+      const input = document.createElement('input');
+      input.className = 'edit-input';
+      input.value = todo.text;
+      span.replaceWith(input);
+      input.focus(); input.select();
+
+      // Replace buttons with save
+      actions.innerHTML = `
+        <button class="icon-btn save" title="Save">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </button>`;
+      actions.querySelector('.save').addEventListener('click', () => saveEdit(todo._id, input.value));
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') saveEdit(todo._id, input.value);
+        if (e.key === 'Escape') render();
+      });
+    }
+
+    // ── API calls ────────────────────────────────────────────────
+    async function fetchTodos() {
+      const list = document.getElementById('todo-list');
+      list.innerHTML = `<div class="empty"><div class="icon"><span class="spinner"></span></div><p>Loading…</p></div>`;
+      try {
+        const res = await fetch(API);
+        if (!res.ok) throw new Error(await res.text());
+        todos = await res.json();
+        render();
+      } catch (err) {
+        showToast('Failed to load todos: ' + err.message, true);
+        list.innerHTML = `<div class="empty"><p style="color:var(--red)">Could not connect to server.</p></div>`;
+      }
+    }
+
+    async function addTodo(text) {
+      try {
+        const res = await fetch(API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        if (!res.ok) throw new Error((await res.json()).error);
+        const todo = await res.json();
+        todos.unshift(todo);
+        render();
+        showToast('Task added ✓');
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    async function toggleTodo(id, completed) {
+      const prev = todos.find(t => t._id === id);
+      if (prev) prev.completed = completed; // optimistic
+      render();
+      try {
+        const res = await fetch(API, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, completed })
+        });
+        if (!res.ok) {
+          if (prev) prev.completed = !completed; // revert
+          render();
+          throw new Error((await res.json()).error);
+        }
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    async function saveEdit(id, text) {
+      text = text.trim();
+      if (!text) { showToast('Task cannot be empty', true); return; }
+      try {
+        const res = await fetch(API, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, text })
+        });
+        if (!res.ok) throw new Error((await res.json()).error);
+        const t = todos.find(t => t._id === id);
+        if (t) t.text = text;
+        render();
+        showToast('Saved ✓');
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    async function deleteTodo(id) {
+      const idx = todos.findIndex(t => t._id === id);
+      const removed = todos.splice(idx, 1)[0]; // optimistic
+      render();
+      try {
+        const res = await fetch(API, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        if (!res.ok) {
+          todos.splice(idx, 0, removed); // revert
+          render();
+          throw new Error((await res.json()).error);
+        }
+        showToast('Deleted');
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    // ── Events ───────────────────────────────────────────────────
+    document.getElementById('add-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const input = document.getElementById('new-todo');
+      const text = input.value.trim();
+      if (!text) return;
+      const btn = document.getElementById('add-btn');
+      btn.disabled = true;
+      addTodo(text).finally(() => {
+        btn.disabled = false;
+        input.value = '';
+        input.focus();
+      });
+    });
+
+    document.querySelectorAll('.filters button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        filter = btn.dataset.filter;
+        render();
+      });
+    });
+
+    // ── Init ─────────────────────────────────────────────────────
+    fetchTodos();
+  </script>
+</body>
+</html>
